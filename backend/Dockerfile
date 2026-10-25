@@ -2,11 +2,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Added libgl1 and libglib2.0-0 for OpenCV
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     libtesseract-dev \
     libzbar0 \
     poppler-utils \
+    libgl1 \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
