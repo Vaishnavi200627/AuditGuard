@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://your-auditguard-backend.onrender.com/api';
+const API_BASE_URL = 'https://auditguard-27au.onrender.com';
 
 /**
  * Sends a real POST request to verify multiple documents via FastAPI backend.
