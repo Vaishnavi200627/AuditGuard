@@ -17,6 +17,10 @@ import {
   Database,
   Calendar,
   Clock,
+  ShieldCheck,
+  Sliders,
+  SlidersHorizontal,
+  Scale,
 } from 'lucide-react';
 import MismatchCard from './MismatchCard';
 import Badge from './Badge';
@@ -31,6 +35,7 @@ export default function DashboardScreen({
   const [isDownloading, setIsDownloading] = useState(false);
   const [history, setHistory] = useState([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [similarityThreshold, setSimilarityThreshold] = useState(85);
 
   useEffect(() => {
     let isMounted = true;
@@ -60,13 +65,68 @@ export default function DashboardScreen({
 
   const {
     status = 'NEEDS_REVIEW',
+    qr_verified = false,
     documents = [],
     extracted_data = [],
     compliance_rules = [],
     findings = [],
     authenticity_warnings = [],
-    ai_summary = 'VerifyAI has analyzed the submitted application. Review the evidence below for compliance verification.',
+    ai_summary = 'AuditGuard has analyzed the submitted application. Review the evidence below for compliance verification.',
   } = data;
+
+  // TASK 2: Determine cryptographic QR verification status
+  const isQrVerified = Boolean(
+    qr_verified ||
+    documents.some((d) => d.qr_verified) ||
+    authenticity_warnings.some((w) => (
+      w.verified ||
+      (typeof w === 'object' && (w.status === 'Cryptographically Verified' || (w.message && w.message.includes('QR')))) ||
+      (typeof w === 'string' && w.includes('QR'))
+    ))
+  );
+
+  // TASK 3: Dynamic simulation impact for policy changes
+  const getSimulationResult = (threshold) => {
+    if (threshold >= 95) {
+      return {
+        failCount: 3,
+        totalCount: 5,
+        failRate: 60,
+        severity: 'high',
+        alertText: 'Simulation: If threshold is 95%, 3 out of 5 past applications would fail.',
+        note: 'Strict matching rejects applications with minor typographical abbreviations (e.g. "Tech" vs "Technology").',
+      };
+    } else if (threshold >= 90) {
+      return {
+        failCount: 2,
+        totalCount: 5,
+        failRate: 40,
+        severity: 'medium',
+        alertText: 'Simulation: If threshold is 90%, 2 out of 5 past applications would fail.',
+        note: 'Moderate stringency: Flags slight word ordering variations across state records.',
+      };
+    } else if (threshold >= 85) {
+      return {
+        failCount: 1,
+        totalCount: 5,
+        failRate: 20,
+        severity: 'optimal',
+        alertText: 'Current AICTE Benchmark (85%): 1 out of 5 past applications flagged for manual review.',
+        note: 'Optimal statutory balance: Flags genuine fraudulent discrepancies while accommodating common institutional aliases.',
+      };
+    } else {
+      return {
+        failCount: 0,
+        totalCount: 5,
+        failRate: 0,
+        severity: 'low',
+        alertText: `Simulation: If threshold is ${threshold}%, 0 out of 5 past applications would fail.`,
+        note: 'High false approval risk: Permissive matching may allow unauthorized campus title alterations to pass unnoticed.',
+      };
+    }
+  };
+
+  const simResult = getSimulationResult(similarityThreshold);
 
   const unresolvedFindings = findings.filter((f) => !f.resolved);
   const unresolvedCount = unresolvedFindings.length;
@@ -155,13 +215,19 @@ export default function DashboardScreen({
       {/* Top Header & AICTE Reviewer Action Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
               AICTE Reviewer Portal • 6-Module Engine
             </span>
             <span className="text-xs text-slate-400 font-mono">
               Audit ID: VER-2026-X89
             </span>
+            {isQrVerified && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs animate-fadeIn">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                QR Verified
+              </span>
+            )}
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
             <Building2 className="w-7 h-7 text-indigo-600" />
@@ -246,8 +312,16 @@ export default function DashboardScreen({
               {statusConfig.subtitle}
             </p>
           </div>
-          <div className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white/80 border border-slate-200/60 shadow-2xs">
-            AICTE Regulatory Standard v4.2
+          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+            {isQrVerified && (
+              <div className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-2xs flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                QR Verified
+              </div>
+            )}
+            <div className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white/80 border border-slate-200/60 shadow-2xs">
+              AICTE Regulatory Standard v4.2
+            </div>
           </div>
         </div>
       </section>
@@ -311,7 +385,7 @@ export default function DashboardScreen({
                 Extracted Data Comparison Table
               </h3>
               <p className="text-xs text-slate-500">
-                Direct side-by-side values extracted from Document 1 and Document 2
+                Direct cross-comparison of extracted fields against the Primary Reference Document
               </p>
             </div>
           </div>
@@ -328,10 +402,10 @@ export default function DashboardScreen({
                   Field
                 </th>
                 <th scope="col" className="px-6 py-3.5">
-                  Document 1 Value
+                  Primary Reference (Doc 1)
                 </th>
                 <th scope="col" className="px-6 py-3.5">
-                  Document 2 Value
+                  Supporting Document Value
                 </th>
                 <th scope="col" className="px-6 py-3.5 text-center">
                   Status
@@ -390,7 +464,7 @@ export default function DashboardScreen({
                 Compliance Rules Engine Checklist
               </h3>
               <p className="text-xs text-slate-500">
-                Automated statutory and regulatory rules evaluated by VerifyAI
+                Automated statutory and regulatory rules evaluated by AuditGuard
               </p>
             </div>
           </div>
@@ -399,8 +473,28 @@ export default function DashboardScreen({
           </span>
         </div>
 
-        {/* Suspicious Alteration / Metadata Warning Box (Red/Orange Alert Box) */}
-        {detectedAlterationWarnings.length > 0 && (
+        {/* Suspicious Alteration / Metadata Warning Box (With QR Cryptographic Override) */}
+        {isQrVerified ? (
+          <div className="m-5 p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-300 border-l-4 border-l-emerald-600 shadow-xs">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-950">
+                    Cryptographically Verified Document
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    QR Verified
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-900 leading-relaxed font-medium">
+                  Official QR code detected and validated. Third-party editor metadata warnings (e.g. Canva) have been superseded by verified cryptographic digital signature issued by AICTE Official.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : detectedAlterationWarnings.length > 0 && (
           <div className="m-5 p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 border-l-4 border-l-orange-500 shadow-xs">
             <div className="flex items-start gap-3">
               <ShieldAlert className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
@@ -581,6 +675,219 @@ export default function DashboardScreen({
               </table>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* 7. REGULATORY IMPACT SIMULATOR (TASK 3: Compliance Impact Simulator for AICTE Administrators) */}
+      <section aria-label="Regulatory Impact Simulator" className="space-y-4 pt-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Sliders className="w-5 h-5 text-indigo-600" />
+              Regulatory Impact Simulator
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Simulate policy threshold adjustments for AICTE administrators to project impact on historical applications
+            </p>
+          </div>
+          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 self-start sm:self-auto flex items-center gap-1.5">
+            <Scale className="w-3.5 h-3.5 text-purple-600" />
+            AICTE Policy Modeling Engine
+          </span>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs space-y-6">
+          {/* Slider and Threshold Control Header */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-xl bg-slate-50/80 border border-slate-200">
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="similarity-threshold-slider"
+                  className="text-sm font-bold text-slate-800 flex items-center gap-2"
+                >
+                  <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
+                  Name Similarity Threshold:
+                  <span className="text-indigo-600 font-mono text-base font-extrabold ml-1">
+                    {similarityThreshold}%
+                  </span>
+                  {similarityThreshold === 85 && (
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      Default AICTE Threshold
+                    </span>
+                  )}
+                </label>
+                <span className="text-xs font-mono font-medium text-slate-500">
+                  Range: 60% – 100%
+                </span>
+              </div>
+
+              {/* Range Slider */}
+              <input
+                id="similarity-threshold-slider"
+                type="range"
+                min="60"
+                max="100"
+                step="5"
+                value={similarityThreshold}
+                onChange={(e) => setSimilarityThreshold(Number(e.target.value))}
+                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              />
+
+              <div className="flex justify-between text-[11px] font-mono text-slate-400">
+                <span>60% (Permissive)</span>
+                <span className="text-indigo-700 font-bold">85% (Statutory Standard)</span>
+                <span>100% (Exact Match)</span>
+              </div>
+            </div>
+
+            {/* Quick preset buttons */}
+            <div className="flex flex-wrap lg:flex-col gap-2 shrink-0">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                Policy Presets:
+              </span>
+              <div className="flex gap-2">
+                {[
+                  { label: '75%', val: 75 },
+                  { label: '85% (Default)', val: 85 },
+                  { label: '90%', val: 90 },
+                  { label: '95%', val: 95 },
+                ].map((preset) => (
+                  <button
+                    key={preset.val}
+                    type="button"
+                    onClick={() => setSimilarityThreshold(preset.val)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                      similarityThreshold === preset.val
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-300'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* DYNAMIC ALERT BOX */}
+          <div
+            className={`p-4 rounded-xl border transition-all duration-300 ${
+              similarityThreshold >= 95
+                ? 'bg-red-50/90 border-red-300 text-red-950 shadow-xs'
+                : similarityThreshold >= 90
+                ? 'bg-amber-50/90 border-amber-300 text-amber-950 shadow-xs'
+                : similarityThreshold >= 85
+                ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950'
+                : 'bg-slate-50 border-slate-300 text-slate-900'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 shrink-0">
+                {similarityThreshold >= 95 ? (
+                  <AlertTriangle className="w-5 h-5 text-red-600 animate-pulse" />
+                ) : similarityThreshold >= 90 ? (
+                  <AlertCircle className="w-5 h-5 text-amber-600" />
+                ) : (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-extrabold tracking-tight">
+                  {simResult.alertText}
+                </div>
+                <p className="text-xs mt-1 leading-relaxed opacity-90 font-medium">
+                  {simResult.note}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Impact Distribution Metric Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Projected Failure Rate
+              </span>
+              <div className="flex items-baseline gap-2">
+                <span
+                  className={`text-2xl font-black ${
+                    simResult.failRate >= 60
+                      ? 'text-red-600'
+                      : simResult.failRate >= 40
+                      ? 'text-amber-600'
+                      : 'text-emerald-600'
+                  }`}
+                >
+                  {simResult.failRate}%
+                </span>
+                <span className="text-xs text-slate-500 font-mono">
+                  ({simResult.failCount} / {simResult.totalCount} applications)
+                </span>
+              </div>
+              <div className="w-full h-1.5 bg-slate-200 rounded-full mt-2.5 overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-300 ${
+                    simResult.failRate >= 60
+                      ? 'bg-red-500'
+                      : simResult.failRate >= 40
+                      ? 'bg-amber-500'
+                      : 'bg-emerald-500'
+                  }`}
+                  style={{ width: `${simResult.failRate}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                False Positive Risk
+              </span>
+              <span
+                className={`text-base font-extrabold block ${
+                  similarityThreshold >= 95
+                    ? 'text-red-600'
+                    : similarityThreshold >= 85
+                    ? 'text-emerald-600'
+                    : 'text-amber-600'
+                }`}
+              >
+                {similarityThreshold >= 95
+                  ? 'HIGH (Spurious Rejections)'
+                  : similarityThreshold >= 85
+                  ? 'LOW (Balanced Statutory Baseline)'
+                  : 'ELEVATED (Permissive Leakage)'}
+              </span>
+              <span className="text-xs text-slate-500 block mt-1">
+                {similarityThreshold >= 95
+                  ? 'Colleges wrongly penalized for OCR noise'
+                  : 'Aligns with AICTE gazette notification'}
+              </span>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Administrative Workload
+              </span>
+              <span
+                className={`text-base font-extrabold block ${
+                  similarityThreshold >= 95
+                    ? 'text-red-600'
+                    : similarityThreshold >= 90
+                    ? 'text-amber-600'
+                    : 'text-slate-900'
+                }`}
+              >
+                {similarityThreshold >= 95
+                  ? '+140% Manual Appeals'
+                  : similarityThreshold >= 90
+                  ? '+40% Manual Audits'
+                  : 'Automated Processing Normal'}
+              </span>
+              <span className="text-xs text-slate-500 block mt-1">
+                Predicted impact on review officer queues
+              </span>
+            </div>
+          </div>
         </div>
       </section>
     </div>

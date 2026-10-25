@@ -3,17 +3,22 @@ import axios from 'axios';
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
 /**
- * Sends a real POST request to verify documents via FastAPI backend.
- * Uses FormData with 'doc1' and 'doc2', with logging and 30s timeout.
+ * Sends a real POST request to verify multiple documents via FastAPI backend.
+ * Uses FormData appending each file under key 'docs', with logging and 30s timeout.
  */
-export async function verifyDocuments(file1, file2) {
+export async function verifyDocuments(filesArray, legacyFile2 = null) {
   try {
-    const formData = new FormData();
-    formData.append('doc1', file1);
-    formData.append('doc2', file2);
+    const files = Array.isArray(filesArray)
+      ? filesArray
+      : [filesArray, legacyFile2].filter(Boolean);
 
-    console.log('[VerifyAI API] Sending verification request to:', `${API_BASE_URL}/verify`);
-    console.log('[VerifyAI API] Payload - doc1:', file1?.name, 'doc2:', file2?.name);
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append('docs', file);
+    });
+
+    console.log('[VerifyAI API] Sending multi-document verification request to:', `${API_BASE_URL}/verify`);
+    console.log('[VerifyAI API] Payload - file count:', files.length, files.map((f) => f.name));
 
     const response = await axios.post(`${API_BASE_URL}/verify`, formData, {
       headers: {
@@ -25,6 +30,9 @@ export async function verifyDocuments(file1, file2) {
     console.log('[VerifyAI API] Received response:', response.status, response.data);
 
     const data = response.data;
+    if (data.status === 'ERROR') {
+      throw new Error(data.message || 'Verification failed on server.');
+    }
 
     // Format findings with id, severity, field, reason, doc1_value, doc2_value, recommended_action
     const formattedFindings = (data.findings || []).map((finding, idx) => ({
@@ -40,14 +48,16 @@ export async function verifyDocuments(file1, file2) {
     }));
 
     // Format documents for frontend display
-    const formattedDocuments = (data.documents || [
-      { doc_name: file1?.name || 'Document 1', type: 'Auto-Detected Document' },
-      { doc_name: file2?.name || 'Document 2', type: 'Auto-Detected Document' },
-    ]).map((doc, idx) => ({
+    const formattedDocuments = (data.documents || files.map((f, i) => ({
+      doc_name: f.name,
+      type: i === 0 ? 'Primary Reference Document' : 'Supporting Document',
+    }))).map((doc, idx) => ({
       id: `doc${idx + 1}`,
-      filename: doc.doc_name || doc.filename || (idx === 0 ? file1?.name : file2?.name) || `Document ${idx + 1}`,
-      classified_as: doc.type || doc.classified_as || 'Affiliation / Registration Document',
+      filename: doc.doc_name || doc.filename || files[idx]?.name || `Document ${idx + 1}`,
+      classified_as: doc.type || (idx === 0 ? 'Primary Reference Document' : 'Supporting Document'),
       confidence: doc.confidence ?? 0.95,
+      is_ocr: doc.is_ocr ?? false,
+      warning: doc.warning || null,
     }));
 
     // Extracted Data array
@@ -92,7 +102,7 @@ export async function verifyDocuments(file1, file2) {
       extracted_data: extractedData,
       compliance_rules: complianceRules,
       authenticity_warnings: data.authenticity_warnings || [],
-      ai_summary: data.ai_summary || 'VerifyAI has analyzed the application. Please review the flagged evidence before approval.',
+      ai_summary: data.ai_summary || 'AuditGuard has analyzed the application. Please review the flagged evidence before approval.',
       findings: formattedFindings,
     };
   } catch (error) {

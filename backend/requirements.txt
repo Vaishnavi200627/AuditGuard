@@ -11,4 +11,5 @@ sqlalchemy
 google-generativeai
 opencv-python
 numpy
+pyzbar
 fastapi-mail

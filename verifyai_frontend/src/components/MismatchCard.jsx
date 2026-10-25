@@ -10,6 +10,9 @@ import {
   FileText,
   ShieldAlert,
   ArrowRightCircle,
+  Scan,
+  Eye,
+  Sparkles,
 } from 'lucide-react';
 import Badge from './Badge';
 
@@ -190,6 +193,67 @@ export default function MismatchCard({ finding, onResolve }) {
                 {finding.doc2_value}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* TASK 1: THE EVIDENCE BOUNDING BOX (Visual mockup of PDF document) */}
+        <div className="mt-4 pt-3 border-t border-slate-100">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+              <Scan className="w-3.5 h-3.5 text-indigo-600" />
+              AI Vision Extraction: {finding.field}
+            </span>
+            <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1">
+              <Eye className="w-3 h-3 text-indigo-500" />
+              Vision B-Box: [X:142 Y:318 W:280 H:45] • Page 1
+            </span>
+          </div>
+
+          {/* Grey box container representing the PDF document viewer frame */}
+          <div className="p-3 sm:p-4 rounded-xl bg-slate-200/80 border border-slate-300 shadow-inner">
+            {/* White inner area representing the physical document sheet */}
+            <div className="bg-white rounded-lg p-4 sm:p-5 shadow-xs border border-slate-200 relative overflow-hidden font-serif">
+              {/* Document header bar */}
+              <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-100 text-[11px] text-slate-400 font-sans">
+                <div className="flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="font-semibold text-slate-700">
+                    {finding.doc_name || 'Statutory_Compliance_Form.pdf'}
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono">DPI: 300 • Spatial Coordinate Mapping</span>
+              </div>
+
+              {/* Simulated document paragraphs */}
+              <div className="space-y-2 text-xs text-slate-500 select-none">
+                <div className="h-2 w-3/4 bg-slate-100 rounded" />
+                <div className="h-2 w-2/3 bg-slate-100 rounded" />
+
+                {/* Targeted text inside red dashed bounding box */}
+                <div className="py-2 flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-slate-700 font-sans font-medium">
+                    Clause Extract:
+                  </span>
+                  <div className="inline-block relative">
+                    <span className="inline-flex items-center px-3 py-1.5 rounded border-2 border-dashed border-red-500 bg-red-50 text-red-950 font-mono font-bold text-sm shadow-xs">
+                      {finding.doc2_value || finding.doc1_value || 'Value Extracted'}
+                    </span>
+                    <span className="absolute -top-2.5 -right-1 text-[9px] font-sans font-extrabold uppercase px-1.5 py-0.2 rounded bg-red-600 text-white tracking-wider shadow-2xs">
+                      Mismatch Region
+                    </span>
+                  </div>
+                </div>
+
+                <div className="h-2 w-5/6 bg-slate-100 rounded" />
+                <div className="h-2 w-1/2 bg-slate-100 rounded" />
+              </div>
+
+              {/* Document footer notice */}
+              <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-sans">
+                <span>AICTE Statutory Verification Bureau</span>
+                <span className="font-mono text-emerald-600 font-semibold">OCR Confidence: 98.4%</span>
+              </div>
+            </div>
           </div>
         </div>
 

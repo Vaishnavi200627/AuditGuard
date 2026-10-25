@@ -8,16 +8,24 @@ import { verifyDocuments, reverify, downloadReport } from './api/realApi';
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('upload'); // 'upload' | 'dashboard'
   const [isLoading, setIsLoading] = useState(false);
+  const [files, setFiles] = useState([]);
   const [file1, setFile1] = useState(null);
   const [file2, setFile2] = useState(null);
   const [verificationData, setVerificationData] = useState(null);
 
-  const handleStartVerification = async () => {
-    if (!file1 || !file2) return;
+  const handleStartVerification = async (selectedFiles) => {
+    const filesToVerify = Array.isArray(selectedFiles) && selectedFiles.length > 0
+      ? selectedFiles
+      : files;
+
+    if (!filesToVerify || filesToVerify.length < 2) {
+      alert('Please select at least 2 documents to verify.');
+      return;
+    }
 
     try {
       setIsLoading(true);
-      const result = await verifyDocuments(file1, file2);
+      const result = await verifyDocuments(filesToVerify);
       setVerificationData(result);
       setCurrentScreen('dashboard');
     } catch (err) {
@@ -89,6 +97,7 @@ export default function App() {
   };
 
   const handleStartOver = () => {
+    setFiles([]);
     setFile1(null);
     setFile2(null);
     setVerificationData(null);
@@ -103,7 +112,7 @@ export default function App() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'VerifyAI_Report.pdf');
+      link.setAttribute('download', 'AuditGuard_Report.pdf');
       document.body.appendChild(link);
       link.click();
       link.parentNode.removeChild(link);
@@ -126,7 +135,7 @@ export default function App() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-lg font-bold text-slate-900 tracking-tight">
-                  VerifyAI
+                  AuditGuard
                 </span>
                 <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
                   GovTech Audit Suite
@@ -152,6 +161,8 @@ export default function App() {
         {currentScreen === 'upload' && (
           <UploadScreen
             onVerify={handleStartVerification}
+            files={files}
+            setFiles={setFiles}
             file1={file1}
             setFile1={setFile1}
             file2={file2}
@@ -175,7 +186,7 @@ export default function App() {
       {/* Footer */}
       <footer className="mt-auto border-t border-slate-200 bg-white py-4 px-4 text-center">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
-          <p>© 2026 VerifyAI Regulatory Systems. Built for regulatory compliance & document integrity.</p>
+          <p>© 2026 AuditGuard Systems. Built for regulatory compliance & document integrity.</p>
           <p className="text-slate-400">Strict Enterprise Standards • ISO/IEC 27001 Ready</p>
         </div>
       </footer>
