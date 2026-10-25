@@ -21,8 +21,11 @@ export default function UploadScreen({ onVerify, file1, setFile1, file2, setFile
     setErrorMsg('');
     if (!file) return;
 
-    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-      setErrorMsg(`"${file.name}" is not a valid PDF file. Please upload .pdf documents only.`);
+    const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    const isValid = validTypes.includes(file.type) || /\.(pdf|jpe?g|png)$/i.test(file.name);
+
+    if (!isValid) {
+      setErrorMsg(`"${file.name}" is not a supported file type. Please upload PDF, JPG, or PNG.`);
       return;
     }
 
@@ -114,7 +117,7 @@ export default function UploadScreen({ onVerify, file1, setFile1, file2, setFile
             <input
               type="file"
               ref={file1InputRef}
-              accept=".pdf,application/pdf"
+              accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
               onChange={(e) => handleFileChange(e.target.files?.[0], 1)}
               className="hidden"
             />
@@ -153,7 +156,7 @@ export default function UploadScreen({ onVerify, file1, setFile1, file2, setFile
                   Click to browse or drag & drop
                 </p>
                 <span className="mt-3 inline-block px-2 py-0.5 rounded text-[11px] font-semibold uppercase bg-slate-200 text-slate-700">
-                  PDF only
+                  PDF, JPG, PNG
                 </span>
               </div>
             )}
@@ -184,7 +187,7 @@ export default function UploadScreen({ onVerify, file1, setFile1, file2, setFile
             <input
               type="file"
               ref={file2InputRef}
-              accept=".pdf,application/pdf"
+              accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
               onChange={(e) => handleFileChange(e.target.files?.[0], 2)}
               className="hidden"
             />
@@ -223,7 +226,7 @@ export default function UploadScreen({ onVerify, file1, setFile1, file2, setFile
                   Click to browse or drag & drop
                 </p>
                 <span className="mt-3 inline-block px-2 py-0.5 rounded text-[11px] font-semibold uppercase bg-slate-200 text-slate-700">
-                  PDF only
+                  PDF, JPG, PNG
                 </span>
               </div>
             )}
