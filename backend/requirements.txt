@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+python-multipart
+pypdf
+rapidfuzz
+reportlab
+pymupdf
+pytesseract
+pillow
+sqlalchemy
+google-generativeai
+opencv-python
+numpy
+fastapi-mail
