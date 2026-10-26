@@ -1,10 +1,11 @@
 import axios from 'axios';
 
+// Ensure this matches your exact Render backend URL + /api
 const API_BASE_URL = 'https://auditguard-27au.onrender.com/api';
 
 /**
  * Sends a real POST request to verify multiple documents via FastAPI backend.
- * Uses FormData appending each file under key 'docs', with logging and 30s timeout.
+ * Uses FormData appending each file under key 'docs', with logging and 90s timeout.
  */
 export async function verifyDocuments(filesArray, legacyFile2 = null) {
   try {
@@ -17,17 +18,17 @@ export async function verifyDocuments(filesArray, legacyFile2 = null) {
       formData.append('docs', file);
     });
 
-    console.log('[VerifyAI API] Sending multi-document verification request to:', `${API_BASE_URL}/verify`);
-    console.log('[VerifyAI API] Payload - file count:', files.length, files.map((f) => f.name));
+    console.log('[AuditGuard API] Sending multi-document verification request to:', `${API_BASE_URL}/verify`);
+    console.log('[AuditGuard API] Payload - file count:', files.length, files.map((f) => f.name));
 
     const response = await axios.post(`${API_BASE_URL}/verify`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
-      timeout: 30000,
+      timeout: 90000, // 90 seconds to allow Render cold starts
     });
 
-    console.log('[VerifyAI API] Received response:', response.status, response.data);
+    console.log('[AuditGuard API] Received response:', response.status, response.data);
 
     const data = response.data;
     if (data.status === 'ERROR') {
@@ -106,19 +107,20 @@ export async function verifyDocuments(filesArray, legacyFile2 = null) {
       findings: formattedFindings,
     };
   } catch (error) {
-    console.error('[VerifyAI API] Axios error caught:', error);
+    console.error('[AuditGuard API] Axios error caught:', error);
 
+    // 🟢 PRODUCTION ERROR MESSAGES 🟢
     if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-      console.error('[VerifyAI API] Request timed out after 30 seconds.');
-      throw new Error('Verification request timed out. Please verify that uvicorn is running on port 8000.');
+      console.error('[AuditGuard API] Request timed out.');
+      throw new Error('The backend server is waking up from sleep (this takes about 50 seconds). Please wait a moment and click Verify again.');
     } else if (error.response) {
-      console.error('[VerifyAI API] Backend returned error status:', error.response.status, error.response.data);
+      console.error('[AuditGuard API] Backend returned error status:', error.response.status, error.response.data);
       throw new Error(`Backend error (${error.response.status}): ${JSON.stringify(error.response.data?.detail || error.response.data)}`);
     } else if (error.request) {
-      console.error('[VerifyAI API] No response received from backend:', error.message);
-      throw new Error('Cannot connect to backend server. Please ensure the backend is started at http://127.0.0.1:8000.');
+      console.error('[AuditGuard API] No response received from backend:', error.message);
+      throw new Error('Cannot connect to the cloud server. Please check your internet connection and try again.');
     } else {
-      console.error('[VerifyAI API] Unexpected error:', error.message);
+      console.error('[AuditGuard API] Unexpected error:', error.message);
       throw error;
     }
   }
@@ -129,7 +131,7 @@ export async function verifyDocuments(filesArray, legacyFile2 = null) {
  */
 export async function downloadReport(verificationData) {
   try {
-    console.log('[VerifyAI API] Requesting PDF report download from:', `${API_BASE_URL}/report`);
+    console.log('[AuditGuard API] Requesting PDF report download from:', `${API_BASE_URL}/report`);
     const payload = {
       extracted_data: verificationData?.extracted_data || [],
       compliance_rules: verificationData?.compliance_rules || [],
@@ -143,14 +145,14 @@ export async function downloadReport(verificationData) {
       headers: {
         'Content-Type': 'application/json',
       },
-      timeout: 30000,
+      timeout: 90000, // 90 seconds to allow Render cold starts
     });
 
-    console.log('[VerifyAI API] PDF report received successfully, size:', response.data.size, 'bytes');
+    console.log('[AuditGuard API] PDF report received successfully, size:', response.data.size, 'bytes');
     return response.data;
   } catch (error) {
-    console.error('[VerifyAI API] Error downloading report:', error);
-    throw new Error('Failed to generate PDF report from server. Please verify backend is running.');
+    console.error('[AuditGuard API] Error downloading report:', error);
+    throw new Error('Failed to generate PDF report. The server might be starting up. Please try again.');
   }
 }
 
@@ -165,7 +167,7 @@ export async function reverify(findingId, correctedValue) {
     }, { timeout: 10000 });
     return response.data;
   } catch (err) {
-    return { success: true };
+    return { success: true }; // Fallback for demo so UI doesn't break
   }
 }
 
@@ -177,8 +179,7 @@ export async function getAuditHistory() {
     const response = await axios.get(`${API_BASE_URL}/history`, { timeout: 10000 });
     return Array.isArray(response.data) ? response.data : (response.data?.history || []);
   } catch (error) {
-    console.error('[VerifyAI API] Error fetching audit history:', error);
+    console.error('[AuditGuard API] Error fetching audit history:', error);
     return [];
   }
 }
-
